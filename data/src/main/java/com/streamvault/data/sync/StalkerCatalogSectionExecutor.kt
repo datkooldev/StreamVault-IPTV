@@ -6,6 +6,7 @@ import com.streamvault.data.local.dao.MovieDao
 import com.streamvault.data.local.dao.SeriesDao
 import com.streamvault.data.local.dao.XtreamContentIndexDao
 import com.streamvault.data.local.entity.CategoryEntity
+import com.streamvault.data.preferences.PreferencesRepository
 import com.streamvault.data.remote.stalker.StalkerProvider
 import com.streamvault.domain.model.ContentType
 import com.streamvault.domain.model.LegacyProvider as Provider
@@ -25,6 +26,7 @@ internal class StalkerCatalogSectionExecutor(
     private val movieDao: MovieDao,
     private val seriesDao: SeriesDao,
     private val syncMetadataRepository: SyncMetadataRepository,
+    private val preferencesRepository: PreferencesRepository,
     private val createProvider: (Provider) -> StalkerProvider,
     private val updateIndexJob: suspend (Long, ContentType, Int, Long) -> Unit,
     private val emitSectionProgress: (Long, Section, Int, Int) -> Unit,
@@ -55,7 +57,11 @@ internal class StalkerCatalogSectionExecutor(
         val now = System.currentTimeMillis()
         progress(provider.id, onProgress, "Queueing Movies index...")
         val api = createProvider(provider)
-        val categories = requireResult(api.getVodCategories(), "Failed to load movie categories")
+        var categories = requireResult(api.getVodCategories(), "Failed to load movie categories")
+        val selectedIds = preferencesRepository.getVodSyncCategoryIds(provider.id).first()
+        if (selectedIds.isNotEmpty()) {
+            categories = categories.filter { it.id in selectedIds }
+        }
         emitSectionProgress(
             provider.id,
             Section.VOD,
@@ -105,7 +111,11 @@ internal class StalkerCatalogSectionExecutor(
     ): SyncOutcome {
         progress(provider.id, onProgress, "Queueing Series index...")
         val api = createProvider(provider)
-        val categories = requireResult(api.getSeriesCategories(), "Failed to load series categories")
+        var categories = requireResult(api.getSeriesCategories(), "Failed to load series categories")
+        val selectedIds = preferencesRepository.getVodSyncCategoryIds(provider.id).first()
+        if (selectedIds.isNotEmpty()) {
+            categories = categories.filter { it.id in selectedIds }
+        }
         emitSectionProgress(
             provider.id,
             Section.SERIES,

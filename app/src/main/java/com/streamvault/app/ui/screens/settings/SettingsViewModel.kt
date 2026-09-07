@@ -18,6 +18,7 @@ import com.streamvault.app.update.AppUpdateInstaller
 import com.streamvault.app.update.GitHubReleaseChecker
 import com.streamvault.app.update.isRemoteVersionNewer
 import com.streamvault.data.local.dao.ProgramDao
+import com.streamvault.data.local.dao.StalkerIndexJobDao
 import com.streamvault.data.local.dao.XtreamIndexJobDao
 import com.streamvault.data.local.dao.XtreamLiveOnboardingDao
 import com.streamvault.data.local.entity.XtreamIndexJobEntity
@@ -81,7 +82,9 @@ import com.streamvault.domain.repository.CategoryRepository
 import com.streamvault.domain.repository.ChannelRepository
 import com.streamvault.domain.repository.MovieRepository
 import com.streamvault.domain.repository.SeriesRepository
+import com.streamvault.domain.repository.VodRepository
 import com.streamvault.domain.repository.SyncMetadataRepository
+import com.streamvault.app.ui.components.dialogs.VodCategorySelectItem
 import com.streamvault.domain.usecase.GetCustomCategories
 import com.streamvault.domain.usecase.SyncProvider
 import com.streamvault.domain.usecase.SyncProviderCommand
@@ -95,6 +98,8 @@ import kotlin.math.max
 import javax.inject.Inject
 
 private const val BACKGROUND_INDEX_STATUS_PREFIX = "Background index:"
+private val STALKER_VOD_INDEXING_STATES = setOf("QUEUED", "RUNNING", "RETRY_WAIT", "PARTIAL")
+private val XTREAM_VOD_INDEXING_STATES = setOf("QUEUED", "RUNNING", "PARTIAL", "STALE", "FAILED_RETRYABLE")
 
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -106,6 +111,7 @@ class SettingsViewModel @Inject constructor(
     private val channelRepository: ChannelRepository,
     private val movieRepository: MovieRepository,
     private val seriesRepository: SeriesRepository,
+    private val vodRepository: VodRepository,
     private val programDao: ProgramDao,
     private val preferencesRepository: PreferencesRepository,
     private val internetSpeedTestRunner: InternetSpeedTestRunner,
@@ -118,6 +124,7 @@ class SettingsViewModel @Inject constructor(
     private val xtreamIndexJobDao: XtreamIndexJobDao,
     private val xtreamLiveOnboardingDao: XtreamLiveOnboardingDao,
     private val syncMetadataRepository: SyncMetadataRepository,
+    private val stalkerIndexJobDao: StalkerIndexJobDao,
     private val playbackHistoryRepository: com.streamvault.domain.repository.PlaybackHistoryRepository,
     private val watchNextManager: WatchNextManager,
     private val launcherRecommendationsManager: LauncherRecommendationsManager,
@@ -1136,6 +1143,109 @@ class SettingsViewModel @Inject constructor(
 
     fun syncProviderCustom(providerId: Long, selections: Set<ProviderSyncSelection>) {
         syncActions.syncProviderCustom(viewModelScope, providerId, selections)
+    }
+
+    suspend fun getVodCategoriesForProvider(providerId: Long): List<VodCategorySelectItem> {
+        return loadVodCategoryNames(providerId)
+            .map { VodCategorySelectItem(id = it.id, name = it.name, count = it.count) }
+    }
+
+    private suspend fun loadVodCategoryNames(providerId: Long): List<com.streamvault.domain.model.Category> {
+        return combine(
+            movieRepository.getCategories(providerId),
+            seriesRepository.getCategories(providerId),
+            vodRepository.getCategories(providerId)
+        ) { movies, series, vod ->
+            (movies + series + vod)
+                .distinctBy { it.id }
+                .sortedBy { it.name.lowercase() }
+        }.first()
+    }
+
+    suspend fun getVodSyncVerification(providerId: Long): VodSyncVerification {
+        val selectedIds = preferencesRepository.getVodSyncCategoryIds(providerId).first()
+        val categories = loadVodCategoryNames(providerId)
+        val target = if (selectedIds.isEmpty()) categories else categories.filter { it.id in selectedIds }
+        val missingIds = if (selectedIds.isEmpty()) {
+            emptyList()
+        } else {
+            selectedIds.filter { id -> categories.none { it.id == id } }
+        }
+        val movieCounts = movieRepository.getCategoryItemCounts(providerId).first()
+        val seriesCounts = seriesRepository.getCategoryItemCounts(providerId).first()
+        val emptyIds = target
+            .filter { (movieCounts[it.id] ?: 0) + (seriesCounts[it.id] ?: 0) <= 0 }
+            .map { it.id }
+        val movieItems = target.sumOf { movieCounts[it.id] ?: 0 }
+        val seriesItems = target.sumOf { seriesCounts[it.id] ?: 0 }
+
+        val stalkerMovieState = runCatching { stalkerIndexJobDao.get(providerId, "MOVIE")?.state?.name }.getOrNull()
+        val stalkerSeriesState = runCatching { stalkerIndexJobDao.get(providerId, "SERIES")?.state?.name }.getOrNull()
+        val xtreamMovieState = runCatching { xtreamIndexJobDao.get(providerId, "MOVIE")?.state }.getOrNull()
+        val xtreamSeriesState = runCatching { xtreamIndexJobDao.get(providerId, "SERIES")?.state }.getOrNull()
+        val indexingActive =
+            stalkerMovieState in STALKER_VOD_INDEXING_STATES ||
+                stalkerSeriesState in STALKER_VOD_INDEXING_STATES ||
+                xtreamMovieState in XTREAM_VOD_INDEXING_STATES ||
+                xtreamSeriesState in XTREAM_VOD_INDEXING_STATES
+        val stale = runCatching { syncMetadataRepository.getMetadata(providerId)?.movieCatalogStale == true }
+            .getOrDefault(false)
+
+        val verifiedCount = target.size - emptyIds.size
+        val status = when {
+            indexingActive || stale -> VodSyncVerificationStatus.SYNCING
+            target.isEmpty() && missingIds.isEmpty() -> VodSyncVerificationStatus.NOT_SYNCED
+            emptyIds.isEmpty() && missingIds.isEmpty() -> VodSyncVerificationStatus.VERIFIED
+            verifiedCount <= 0 -> VodSyncVerificationStatus.NOT_SYNCED
+            else -> VodSyncVerificationStatus.PARTIAL
+        }
+        return VodSyncVerification(
+            status = status,
+            selectedCount = selectedIds.size,
+            syncAll = selectedIds.isEmpty(),
+            totalCategories = target.size + missingIds.size,
+            verifiedCategories = verifiedCount,
+            movieItems = movieItems,
+            seriesItems = seriesItems,
+            indexingActive = indexingActive,
+            catalogStale = stale,
+            missingCategoryIds = missingIds,
+            emptyCategoryIds = emptyIds,
+            checkedAt = System.currentTimeMillis()
+        )
+    }
+
+    fun refreshVodSyncVerification(providerId: Long) {
+        if (_uiState.value.vodSyncVerificationByProvider[providerId]?.status == VodSyncVerificationStatus.CHECKING) {
+            return
+        }
+        _uiState.update { state ->
+            state.copy(
+                vodSyncVerificationByProvider = state.vodSyncVerificationByProvider +
+                    (providerId to VodSyncVerification(status = VodSyncVerificationStatus.CHECKING))
+            )
+        }
+        viewModelScope.launch {
+            val result = runCatching { getVodSyncVerification(providerId) }.getOrElse {
+                VodSyncVerification(status = VodSyncVerificationStatus.IDLE)
+            }
+            _uiState.update { state ->
+                state.copy(
+                    vodSyncVerificationByProvider = state.vodSyncVerificationByProvider +
+                        (providerId to result)
+                )
+            }
+        }
+    }
+
+    suspend fun getVodSyncCategoryIds(providerId: Long): Set<Long> {
+        return preferencesRepository.getVodSyncCategoryIds(providerId).first()
+    }
+
+    fun setVodSyncCategoryIds(providerId: Long, ids: Set<Long>) {
+        viewModelScope.launch {
+            preferencesRepository.setVodSyncCategoryIds(providerId, ids)
+        }
     }
 
     fun retryWarningAction(providerId: Long, action: ProviderWarningAction) {

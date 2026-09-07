@@ -16,6 +16,46 @@ enum class ProviderCatalogCountStatus {
     READY
 }
 
+enum class VodSyncVerificationStatus {
+    IDLE,
+    CHECKING,
+    VERIFIED,
+    SYNCING,
+    PARTIAL,
+    NOT_SYNCED
+}
+
+data class VodSyncVerification(
+    val status: VodSyncVerificationStatus = VodSyncVerificationStatus.IDLE,
+    val selectedCount: Int = 0,
+    val syncAll: Boolean = true,
+    val totalCategories: Int = 0,
+    val verifiedCategories: Int = 0,
+    val movieItems: Int = 0,
+    val seriesItems: Int = 0,
+    val indexingActive: Boolean = false,
+    val catalogStale: Boolean = false,
+    val missingCategoryIds: List<Long> = emptyList(),
+    val emptyCategoryIds: List<Long> = emptyList(),
+    val checkedAt: Long = 0L
+) {
+    val totalItems: Int get() = movieItems + seriesItems
+}
+
+fun VodSyncVerification.summaryText(): String = when (status) {
+    VodSyncVerificationStatus.IDLE ->
+        "Tap Verify to check whether selected categories finished syncing."
+    VodSyncVerificationStatus.CHECKING -> "Checking selected categories…"
+    VodSyncVerificationStatus.VERIFIED ->
+        "Verified: $verifiedCategories/$totalCategories categories • $totalItems items"
+    VodSyncVerificationStatus.SYNCING ->
+        "Syncing: $verifiedCategories/$totalCategories categories have content • $totalItems items"
+    VodSyncVerificationStatus.PARTIAL ->
+        "Partial: $verifiedCategories/$totalCategories categories • $totalItems items"
+    VodSyncVerificationStatus.NOT_SYNCED ->
+        "No content yet for the current selection."
+}
+
 data class ProviderCatalogCountUiModel(
     val count: Int = 0,
     val status: ProviderCatalogCountStatus = ProviderCatalogCountStatus.PENDING

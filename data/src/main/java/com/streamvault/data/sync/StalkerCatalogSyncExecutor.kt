@@ -210,12 +210,17 @@ internal class StalkerCatalogSyncExecutor(
                 }
                 is Result.Loading -> throw IllegalStateException("Unexpected loading state")
             }
-            emitCatalogProgress(provider.id, Section.VOD, categories.size, metadata.liveCount)
+            val selectedVodCategoryIds = preferencesRepository.getVodSyncCategoryIds(provider.id).first()
+            var filteredCategories = categories
+            if (selectedVodCategoryIds.isNotEmpty()) {
+                filteredCategories = categories.filter { it.id in selectedVodCategoryIds }
+            }
+            emitCatalogProgress(provider.id, Section.VOD, filteredCategories.size, metadata.liveCount)
             val storedCategoryType = if (effectiveCatalogLayout == CatalogLayout.UNIFIED_VOD) ContentType.VOD else ContentType.MOVIE
             syncCatalogStore.replaceCategories(
                 providerId = provider.id,
                 type = storedCategoryType.name,
-                categories = categories.mapIndexed { index, category ->
+                categories = filteredCategories.mapIndexed { index, category ->
                     CategoryEntity(
                         providerId = provider.id,
                         categoryId = category.id,
@@ -235,9 +240,9 @@ internal class StalkerCatalogSyncExecutor(
                 provider.id,
                 if (storedCategoryType == ContentType.VOD) ContentType.MOVIE.name else ContentType.VOD.name
             )
-            movieCategoryCount = categories.size
+            movieCategoryCount = filteredCategories.size
             if (effectiveCatalogLayout != CatalogLayout.UNIFIED_VOD && provider.stalkerCatalogMode == StalkerCatalogMode.BACKGROUND_INDEX) {
-                sectionExecutor.queueIndexSection(provider.id, ContentType.MOVIE, categories.size, now)
+                sectionExecutor.queueIndexSection(provider.id, ContentType.MOVIE, filteredCategories.size, now)
             }
             metadata = metadata.copy(
                 lastMovieSync = now,
@@ -269,11 +274,16 @@ internal class StalkerCatalogSyncExecutor(
                 }
                 is Result.Loading -> throw IllegalStateException("Unexpected loading state")
             }
-            emitCatalogProgress(provider.id, Section.SERIES, categories.size, metadata.liveCount)
+            val selectedVodCategoryIds = preferencesRepository.getVodSyncCategoryIds(provider.id).first()
+            var filteredCategories = categories
+            if (selectedVodCategoryIds.isNotEmpty()) {
+                filteredCategories = categories.filter { it.id in selectedVodCategoryIds }
+            }
+            emitCatalogProgress(provider.id, Section.SERIES, filteredCategories.size, metadata.liveCount)
             syncCatalogStore.replaceCategories(
                 providerId = provider.id,
                 type = ContentType.SERIES.name,
-                categories = categories.mapIndexed { index, category ->
+                categories = filteredCategories.mapIndexed { index, category ->
                     CategoryEntity(
                         providerId = provider.id,
                         categoryId = category.id,
@@ -286,9 +296,9 @@ internal class StalkerCatalogSyncExecutor(
                 }
             )
             catalogActivated = true
-            seriesCategoryCount = categories.size
+            seriesCategoryCount = filteredCategories.size
             if (provider.stalkerCatalogMode == StalkerCatalogMode.BACKGROUND_INDEX) {
-                sectionExecutor.queueIndexSection(provider.id, ContentType.SERIES, categories.size, now)
+                sectionExecutor.queueIndexSection(provider.id, ContentType.SERIES, filteredCategories.size, now)
             }
             metadata = metadata.copy(
                 lastSeriesSync = now,

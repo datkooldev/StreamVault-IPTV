@@ -68,6 +68,7 @@ data class SettingsUiState(
     val xtreamLiveOnboardingPhaseByProvider: Map<Long, String> = emptyMap(),
     val xtreamLiveOnboardingByProvider: Map<Long, XtreamLiveOnboardingUiModel> = emptyMap(),
     val xtreamIndexSectionStatusByProvider: Map<Long, Map<String, ProviderCatalogCountStatus>> = emptyMap(),
+    val vodSyncVerificationByProvider: Map<Long, VodSyncVerification> = emptyMap(),
     val diagnosticsByProvider: Map<Long, ProviderDiagnosticsUiModel> = emptyMap(),
     val databaseMaintenance: DatabaseMaintenanceUiModel? = null,
     val parentalControlLevel: Int = 0,

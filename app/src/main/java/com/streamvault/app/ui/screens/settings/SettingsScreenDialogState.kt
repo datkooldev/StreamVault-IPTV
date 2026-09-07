@@ -52,6 +52,7 @@ internal class SettingsScreenDialogState(
     private val showWifiQualityDialogState: MutableState<Boolean>,
     private val showProviderSyncDialogState: MutableState<Boolean>,
     private val showCustomProviderSyncDialogState: MutableState<Boolean>,
+    private val showVodSyncCategoriesDialogState: MutableState<Boolean>,
     private val showCreateCombinedDialogState: MutableState<Boolean>,
     private val showAddCombinedMemberDialogState: MutableState<Boolean>,
     private val showRenameCombinedDialogState: MutableState<Boolean>,
@@ -117,6 +118,7 @@ internal class SettingsScreenDialogState(
     var showWifiQualityDialog by showWifiQualityDialogState
     var showProviderSyncDialog by showProviderSyncDialogState
     var showCustomProviderSyncDialog by showCustomProviderSyncDialogState
+    var showVodSyncCategoriesDialog by showVodSyncCategoriesDialogState
     var showCreateCombinedDialog by showCreateCombinedDialogState
     var showAddCombinedMemberDialog by showAddCombinedMemberDialogState
     var showRenameCombinedDialog by showRenameCombinedDialogState
@@ -153,6 +155,12 @@ internal class SettingsProviderSectionState(
         get() = dialogState.showCustomProviderSyncDialog
         set(value) {
             dialogState.showCustomProviderSyncDialog = value
+        }
+
+    var showVodSyncCategoriesDialog: Boolean
+        get() = dialogState.showVodSyncCategoriesDialog
+        set(value) {
+            dialogState.showVodSyncCategoriesDialog = value
         }
 
     var showCreateCombinedDialog: Boolean
@@ -250,6 +258,7 @@ internal fun rememberSettingsScreenDialogState(): SettingsScreenDialogState {
     val showWifiQualityDialogState = rememberSaveable { mutableStateOf(false) }
     val showProviderSyncDialogState = rememberSaveable { mutableStateOf(false) }
     val showCustomProviderSyncDialogState = rememberSaveable { mutableStateOf(false) }
+    val showVodSyncCategoriesDialogState = rememberSaveable { mutableStateOf(false) }
     val showCreateCombinedDialogState = rememberSaveable { mutableStateOf(false) }
     val showAddCombinedMemberDialogState = rememberSaveable { mutableStateOf(false) }
     val showRenameCombinedDialogState = rememberSaveable { mutableStateOf(false) }
@@ -324,6 +333,7 @@ internal fun rememberSettingsScreenDialogState(): SettingsScreenDialogState {
         showWifiQualityDialogState = showWifiQualityDialogState,
         showProviderSyncDialogState = showProviderSyncDialogState,
         showCustomProviderSyncDialogState = showCustomProviderSyncDialogState,
+        showVodSyncCategoriesDialogState = showVodSyncCategoriesDialogState,
         showCreateCombinedDialogState = showCreateCombinedDialogState,
         showAddCombinedMemberDialogState = showAddCombinedMemberDialogState,
         showRenameCombinedDialogState = showRenameCombinedDialogState,

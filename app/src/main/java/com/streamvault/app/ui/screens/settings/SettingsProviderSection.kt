@@ -110,11 +110,19 @@ internal fun LazyListScope.providerSection(
                 onDelete = { providerState.pendingDeleteProviderId = selectedProvider.id },
                 onEdit = { onEditProvider(selectedProvider) },
                 onParentalControl = { onNavigateToParentalControl(selectedProvider.id) },
+                onVodSyncCategories = {
+                    providerState.pendingSyncProviderId = selectedProvider.id
+                    providerState.showVodSyncCategoriesDialog = true
+                },
                 onToggleM3uVodClassification = { enabled ->
                     viewModel.setM3uVodClassificationEnabled(selectedProvider.id, enabled)
                 },
                 onRefreshM3uClassification = {
                     viewModel.refreshProviderClassification(selectedProvider.id)
+                },
+                vodSyncVerification = uiState.vodSyncVerificationByProvider[selectedProvider.id],
+                onVerifyVodSync = {
+                    viewModel.refreshVodSyncVerification(selectedProvider.id)
                 }
             )
 

@@ -39,7 +39,8 @@ enum class ProviderSyncSelection {
     TV,
     MOVIES,
     SERIES,
-    EPG
+    EPG,
+    VOD_CATEGORIES
 }
 
 internal data class SettingsPreferenceSnapshot(
@@ -136,4 +137,5 @@ internal fun ProviderSyncSelection.label(application: Application): String = whe
     ProviderSyncSelection.MOVIES -> application.getString(R.string.settings_sync_option_movies)
     ProviderSyncSelection.SERIES -> application.getString(R.string.settings_sync_option_series)
     ProviderSyncSelection.EPG -> application.getString(R.string.settings_sync_option_epg)
+    ProviderSyncSelection.VOD_CATEGORIES -> application.getString(R.string.settings_sync_option_vod_categories)
 }

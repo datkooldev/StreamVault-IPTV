@@ -153,4 +153,5 @@ private fun syncSelectionLabel(selection: ProviderSyncSelection): String = when 
     ProviderSyncSelection.MOVIES -> stringResource(R.string.settings_sync_option_movies)
     ProviderSyncSelection.SERIES -> stringResource(R.string.settings_sync_option_series)
     ProviderSyncSelection.EPG -> stringResource(R.string.settings_sync_option_epg)
+    ProviderSyncSelection.VOD_CATEGORIES -> stringResource(R.string.settings_sync_option_vod_categories)
 }

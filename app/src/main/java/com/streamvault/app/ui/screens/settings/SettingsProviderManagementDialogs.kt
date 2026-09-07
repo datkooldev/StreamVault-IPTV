@@ -12,6 +12,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.streamvault.app.ui.components.dialogs.PremiumDialog
 import com.streamvault.app.ui.components.dialogs.PremiumDialogFooterButton
+import com.streamvault.app.ui.components.dialogs.VodCategorySelectItem
+import com.streamvault.app.ui.components.dialogs.VodSyncCategoriesDialog
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
@@ -125,6 +127,43 @@ internal fun SettingsProviderManagementDialogs(
                 providerState.pendingSyncProviderId = null
             }
         )
+    }
+
+    if (providerState.showVodSyncCategoriesDialog && pendingSyncProvider != null) {
+        var categories by remember { mutableStateOf<List<VodCategorySelectItem>>(emptyList()) }
+        var selectedIds by remember { mutableStateOf(emptySet<Long>()) }
+        var isLoading by remember { mutableStateOf(true) }
+
+        LaunchedEffect(pendingSyncProvider.id, providerState.showVodSyncCategoriesDialog) {
+            isLoading = true
+            categories = viewModel.getVodCategoriesForProvider(pendingSyncProvider.id)
+            selectedIds = viewModel.getVodSyncCategoryIds(pendingSyncProvider.id)
+            isLoading = false
+            viewModel.refreshVodSyncVerification(pendingSyncProvider.id)
+        }
+
+        if (!isLoading) {
+            VodSyncCategoriesDialog(
+                categories = categories,
+                selectedIds = selectedIds,
+                onToggle = { id ->
+                    selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                },
+                onSelectAll = {
+                    selectedIds = categories.map { it.id }.toSet()
+                },
+                onClearAll = {
+                    selectedIds = emptySet()
+                },
+                onDismiss = {
+                    viewModel.setVodSyncCategoryIds(pendingSyncProvider.id, selectedIds)
+                    providerState.showVodSyncCategoriesDialog = false
+                    providerState.pendingSyncProviderId = null
+                },
+                verification = uiState.vodSyncVerificationByProvider[pendingSyncProvider.id],
+                onVerify = { viewModel.refreshVodSyncVerification(pendingSyncProvider.id) }
+            )
+        }
     }
 
     val pendingDeleteProviderId = providerState.pendingDeleteProviderId

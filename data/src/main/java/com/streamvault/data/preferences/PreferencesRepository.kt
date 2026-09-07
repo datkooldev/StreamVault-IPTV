@@ -212,6 +212,7 @@ class PreferencesRepository @Inject constructor(
         val VOD_VARIANT_PREFERENCE_MODE = stringPreferencesKey("vod_variant_preference_mode")
         val VOD_VARIANT_SELECTIONS = stringPreferencesKey("vod_variant_selections")
         val VOD_VARIANT_OBSERVATIONS = stringPreferencesKey("vod_variant_observations")
+        val VOD_SYNC_CATEGORY_IDS = stringPreferencesKey("vod_sync_category_ids")
         val GUIDE_DENSITY = stringPreferencesKey("guide_density")
         val GUIDE_CHANNEL_MODE = stringPreferencesKey("guide_channel_mode")
         val GUIDE_DEFAULT_CATEGORY_ID = longPreferencesKey("guide_default_category_id")
@@ -2060,6 +2061,28 @@ class PreferencesRepository @Inject constructor(
         }
     }
 
+    fun getVodSyncCategoryIds(providerId: Long): Flow<Set<Long>> {
+        val key = stringPreferencesKey(vodSyncCategoryIdsKey(providerId))
+        return context.dataStore.data.map { preferences ->
+            preferences[key]
+                ?.split(',')
+                ?.mapNotNull { token -> token.toLongOrNull() }
+                ?.toSet()
+                .orEmpty()
+        }
+    }
+
+    suspend fun setVodSyncCategoryIds(providerId: Long, categoryIds: Set<Long>) {
+        val key = stringPreferencesKey(vodSyncCategoryIdsKey(providerId))
+        context.dataStore.edit { preferences ->
+            if (categoryIds.isEmpty()) {
+                preferences.remove(key)
+            } else {
+                preferences[key] = categoryIds.sorted().joinToString(",")
+            }
+        }
+    }
+
     fun getHiddenChannelIds(providerId: Long): Flow<Set<Long>> {
         val key = stringPreferencesKey(hiddenChannelsKey(providerId))
         return context.dataStore.data.map { preferences ->
@@ -2364,6 +2387,9 @@ class PreferencesRepository @Inject constructor(
 
     private fun hiddenCategoriesKey(providerId: Long, type: ContentType): String =
         "hidden_categories_${providerId}_${type.name}"
+
+    private fun vodSyncCategoryIdsKey(providerId: Long): String =
+        "vod_sync_category_ids_${providerId}"
 
     private fun hiddenChannelsKey(providerId: Long): String =
         "hidden_channels_${providerId}"

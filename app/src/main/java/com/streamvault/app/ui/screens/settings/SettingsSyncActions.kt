@@ -199,7 +199,7 @@ internal class SettingsSyncActions(
                     ProviderSyncSelection.MOVIES -> SyncRepairSection.MOVIES
                     ProviderSyncSelection.SERIES -> SyncRepairSection.SERIES
                     ProviderSyncSelection.EPG -> SyncRepairSection.EPG
-                    ProviderSyncSelection.SYNC_NOW, ProviderSyncSelection.REBUILD_INDEX -> null
+                    ProviderSyncSelection.SYNC_NOW, ProviderSyncSelection.REBUILD_INDEX, ProviderSyncSelection.VOD_CATEGORIES -> null
                 } ?: return@forEach
 
                 uiState.update { state ->

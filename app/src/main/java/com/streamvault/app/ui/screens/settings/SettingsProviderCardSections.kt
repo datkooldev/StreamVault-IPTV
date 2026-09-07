@@ -171,7 +171,8 @@ internal fun ProviderActionButtons(
     onRefresh: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onParentalControl: () -> Unit
+    onParentalControl: () -> Unit,
+    onVodSyncCategories: () -> Unit
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!isActive) {
@@ -211,6 +212,12 @@ internal fun ProviderActionButtons(
                 label = stringResource(R.string.settings_provider_category_controls_action),
                 accent = Primary,
                 onClick = onParentalControl
+            )
+
+            ProviderActionButton(
+                label = stringResource(R.string.settings_sync_option_vod_categories),
+                accent = Primary,
+                onClick = onVodSyncCategories
             )
         }
     }

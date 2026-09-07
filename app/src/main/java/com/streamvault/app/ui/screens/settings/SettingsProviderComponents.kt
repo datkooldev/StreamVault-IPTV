@@ -72,8 +72,11 @@ internal fun ProviderSettingsCard(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     onParentalControl: () -> Unit,
+    onVodSyncCategories: () -> Unit,
     onToggleM3uVodClassification: (Boolean) -> Unit,
-    onRefreshM3uClassification: () -> Unit
+    onRefreshM3uClassification: () -> Unit,
+    vodSyncVerification: VodSyncVerification? = null,
+    onVerifyVodSync: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val liveOnboardingIncomplete = provider.type == ProviderType.XTREAM_CODES &&
@@ -209,6 +212,12 @@ internal fun ProviderSettingsCard(
                 ),
                 databaseMaintenance = databaseMaintenance
             )
+            if (provider.type == ProviderType.STALKER_PORTAL) {
+                VodSyncVerificationCardRow(
+                    verification = vodSyncVerification,
+                    onVerify = onVerifyVodSync
+                )
+            }
         }
 
         if (provider.type == ProviderType.M3U) {
@@ -237,7 +246,8 @@ internal fun ProviderSettingsCard(
             onRefresh = onRefresh,
             onEdit = onEdit,
             onDelete = onDelete,
-            onParentalControl = onParentalControl
+            onParentalControl = onParentalControl,
+            onVodSyncCategories = onVodSyncCategories
         )
 
     }
@@ -312,6 +322,33 @@ internal fun sectionCatalogCount(
         ProviderCatalogCountUiModel(count, ProviderCatalogCountStatus.READY)
     } else {
         ProviderCatalogCountUiModel(count, ProviderCatalogCountStatus.PENDING)
+    }
+}
+
+@Composable
+internal fun VodSyncVerificationCardRow(
+    verification: VodSyncVerification?,
+    onVerify: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = verification?.summaryText()
+                ?: stringResource(R.string.settings_vod_verification_not_checked),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (verification?.status == VodSyncVerificationStatus.VERIFIED) Primary else OnSurfaceDim,
+            modifier = Modifier.weight(1f)
+        )
+        OutlinedButton(onClick = onVerify) {
+            Text(
+                text = stringResource(R.string.settings_vod_verification_verify),
+                style = MaterialTheme.typography.labelMedium,
+                color = Primary
+            )
+        }
     }
 }
 
